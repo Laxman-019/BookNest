@@ -5,6 +5,9 @@ from rest_framework import status
 from rest_framework_simplejwt.tokens import RefreshToken
 from django.contrib.auth import get_user_model
 import re
+from django.db.models import Q
+from .serializers import BookSerializer
+from .models import Book
 
 
 User = get_user_model()
@@ -94,3 +97,82 @@ def logout(req):
     
     except Exception:
         return Response({'error': 'Invalid token'}, status=status.HTTP_400_BAD_REQUEST)
+    
+
+
+@api_view(['GET', 'POST'])
+@permission_classes([IsAuthenticated])
+def book_list(req):
+    user = req.user
+    
+    if req.method == 'GET':
+        books = Book.objects.filter(user=user)
+        
+      
+        search = req.query_params.get('search', '')
+        if search:
+            books = books.filter(
+                Q(title__icontains=search) | Q(author__icontains=search)
+            )
+        
+       
+        status_filter = req.query_params.get('status', '')
+        if status_filter:
+            books = books.filter(status=status_filter)
+        
+       
+        sort_by = req.query_params.get('sort_by', '-created_at')
+        allowed_sort_fields = ['rating', 'title', 'created_at']
+        if sort_by.lstrip('-') in allowed_sort_fields:
+            books = books.order_by(sort_by)
+        
+        
+        page = int(req.query_params.get('page', 1))
+        page_size = int(req.query_params.get('page_size', 10))
+        start = (page - 1) * page_size
+        end = start + page_size
+        
+        total = books.count()
+        books_page = books[start:end]
+        
+        serializer = BookSerializer(books_page, many=True)
+        
+        return Response({
+            'data': serializer.data,
+            'pagination': {
+                'page': page,
+                'page_size': page_size,
+                'total': total,
+                'total_pages': (total + page_size - 1) 
+            }
+        })
+    
+    elif req.method == 'POST':
+        serializer = BookSerializer(data=req.data)
+        if serializer.is_valid():
+            book = serializer.save(user=user)
+            return Response(BookSerializer(book).data, status=status.HTTP_201_CREATED)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+@api_view(['GET', 'PUT', 'DELETE'])
+@permission_classes([IsAuthenticated])
+def book_detail(req, pk):
+    try:
+        book = Book.objects.get(pk=pk, user=req.user)
+    except Book.DoesNotExist:
+        return Response({'error': 'Book not found'}, status=status.HTTP_404_NOT_FOUND)
+    
+    if req.method == 'GET':
+        serializer = BookSerializer(book)
+        return Response(serializer.data)
+    
+    elif req.method == 'PUT':
+        serializer = BookSerializer(book, data=req.data, partial=True)
+        if serializer.is_valid():
+            serializer.save()
+            return Response(serializer.data)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+    
+    elif req.method == 'DELETE':
+        book.delete()
+        return Response({'message': 'Book deleted successfully'})
