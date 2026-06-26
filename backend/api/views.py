@@ -89,16 +89,7 @@ def login(req):
 @api_view(['POST'])
 @permission_classes([IsAuthenticated])
 def logout(req):
-    try:
-        refresh_token = req.data.get('refresh')
-        token = RefreshToken(refresh_token)
-        token.blacklist()
-        return Response({'message' : 'Logged out successfully.'})
-    
-    except Exception:
-        return Response({'error': 'Invalid token'}, status=status.HTTP_400_BAD_REQUEST)
-    
-
+    return Response({'message': 'Logged out successfully.'})
 
 @api_view(['GET', 'POST'])
 @permission_classes([IsAuthenticated])
