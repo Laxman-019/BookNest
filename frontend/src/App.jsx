@@ -7,6 +7,9 @@ import Signup from './pages/Signup';
 import Dashboard from './pages/Dashboard';
 import Books from './pages/Books';
 import BookForm from './pages/BookForm';
+import Shelves from './pages/Shelves';
+import ShelfForm from './pages/ShelfForm';
+import SharedShelves from './pages/SharedShelves';
 
 function App() {
   return (
@@ -19,6 +22,10 @@ function App() {
           <Route path="/books" element={<PrivateRoute><Books /></PrivateRoute>} />
           <Route path="/books/new" element={<PrivateRoute><BookForm /></PrivateRoute>} />
           <Route path="/books/:id/edit" element={<PrivateRoute><BookForm /></PrivateRoute>} />
+          <Route path="/shelves" element={<PrivateRoute><Shelves /></PrivateRoute>} />
+          <Route path="/shelves/new" element={<PrivateRoute><ShelfForm /></PrivateRoute>} />
+          <Route path="/shelves/:id/edit" element={<PrivateRoute><ShelfForm /></PrivateRoute>} />
+          <Route path="/shared-with-me" element={<PrivateRoute><SharedShelves /></PrivateRoute>} />
           <Route path="/" element={<Navigate to="/dashboard" />} />
         </Routes>
       </Router>
