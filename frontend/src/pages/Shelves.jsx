@@ -9,22 +9,34 @@ const Shelves = () => {
   const [shelves, setShelves] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+  const [isMounted, setIsMounted] = useState(true);
 
   const fetchShelves = async () => {
     try {
       setLoading(true);
       const response = await api.get('/shelves/');
-      setShelves(response.data);
-      setError('');
+      if (isMounted) {
+        setShelves(response.data);
+        setError('');
+      }
     } catch (err) {
-      setError('Failed to load shelves');
+      if (isMounted) {
+        setError('Failed to load shelves');
+      }
     } finally {
-      setLoading(false);
+      if (isMounted) {
+        setLoading(false);
+      }
     }
   };
 
   useEffect(() => {
+    setIsMounted(true);
     fetchShelves();
+    
+    return () => {
+      setIsMounted(false);
+    };
   }, []);
 
   const handleDelete = async (id) => {
@@ -55,12 +67,20 @@ const Shelves = () => {
       <div className="max-w-7xl mx-auto p-6">
         <div className="flex justify-between items-center mb-6">
           <h1 className="text-3xl font-bold text-gray-900">My Shelves</h1>
-          <Link
-            to="/shelves/new"
-            className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition"
-          >
-            + Create Shelf
-          </Link>
+          <div className="flex gap-3">
+            <Link
+              to="/shared-with-me"
+              className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition"
+            >
+              Shared with me
+            </Link>
+            <Link
+              to="/shelves/new"
+              className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition"
+            >
+              + Create Shelf
+            </Link>
+          </div>
         </div>
 
         {error && <ErrorMessage message={error} />}

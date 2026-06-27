@@ -8,6 +8,7 @@ import re
 from django.db.models import Q
 from .serializers import *
 from .models import *
+from django.utils import timezone
 
 
 User = get_user_model()
@@ -181,11 +182,9 @@ def book_detail(req, pk):
 @api_view(['GET', 'POST'])
 @permission_classes([IsAuthenticated])
 def shelf_list(req):
-    user = req.user
-    
     if req.method == 'GET':
-        owned_shelves = Shelf.objects.filter(owner=user)
-        shared_shelves = Shelf.objects.filter(shares__user=user)
+        owned_shelves = Shelf.objects.filter(owner=req.user)
+        shared_shelves = Shelf.objects.filter(shares__user=req.user)
         shelves = owned_shelves | shared_shelves
         
         serializer = ShelfSerializer(shelves, many=True, context={'request': req})
@@ -194,9 +193,10 @@ def shelf_list(req):
     elif req.method == 'POST':
         serializer = ShelfSerializer(data=req.data, context={'request': req})
         if serializer.is_valid():
-            shelf = serializer.save(owner=user)
+            shelf = serializer.save(owner=req.user)
             return Response(ShelfSerializer(shelf, context={'request': req}).data, status=status.HTTP_201_CREATED)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
 
 @api_view(['GET', 'DELETE'])
 @permission_classes([IsAuthenticated])
@@ -206,9 +206,8 @@ def shelf_detail(req, pk):
     except Shelf.DoesNotExist:
         return Response({'error': 'Shelf not found'}, status=status.HTTP_404_NOT_FOUND)
     
-    # Check permission
     if shelf.owner != req.user:
-        share = shelf.shares.filter(user=req.user).first()
+        share = shelf.shares.filter(user=req.user).first()  
         if not share:
             return Response({'error': 'You do not have access to this shelf'}, status=status.HTTP_403_FORBIDDEN)
     
@@ -221,6 +220,7 @@ def shelf_detail(req, pk):
             return Response({'error': 'Only the owner can delete this shelf'}, status=status.HTTP_403_FORBIDDEN)
         shelf.delete()
         return Response({'message': 'Shelf deleted successfully'})
+
 
 @api_view(['POST', 'DELETE'])
 @permission_classes([IsAuthenticated])
@@ -235,7 +235,7 @@ def shelf_books(req, pk):
     if shelf.owner == req.user:
         has_permission = True
     else:
-        share = shelf.shares.filter(user=req.user, role='EDITOR').first()
+        share = shelf.shares.filter(user=req.user, role='EDITOR').first()  
         if share:
             has_permission = True
     
@@ -260,6 +260,7 @@ def shelf_books(req, pk):
         shelf.books.remove(book)
         serializer = ShelfSerializer(shelf, context={'request': req})
         return Response(serializer.data)
+
 
 @api_view(['POST'])
 @permission_classes([IsAuthenticated])
@@ -288,7 +289,7 @@ def share_shelf(req, pk):
     
     share, created = ShelfShare.objects.get_or_create(
         shelf=shelf,
-        user=user,
+        user=user, 
         defaults={'role': role}
     )
     
@@ -296,15 +297,15 @@ def share_shelf(req, pk):
         share.role = role
         share.save()
     
-    return Response(ShelfShareSerializer(share).data, status=status.HTTP_201_CREATED)
-
-    #  In share_shelf, after sharing:
     Activity.objects.create(
-        user=request.user,
+        user=req.user,  
         action='SHELF_SHARED',
         description=f"Shared '{shelf.name}' with {user.email} as {role}",
         metadata={'shelf_id': shelf.id, 'shared_with': user.id, 'role': role}
     )
+    
+    return Response(ShelfShareSerializer(share).data, status=status.HTTP_201_CREATED)
+
 
 @api_view(['GET'])
 @permission_classes([IsAuthenticated])
@@ -317,3 +318,157 @@ def shared_with_me(req):
         shelf_data['shared_role'] = share.role
         result.append(shelf_data)
     return Response(result)
+
+
+
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
+def update_progress(req, pk):
+    try:
+        book = Book.objects.get(pk=pk, user=req.user)
+    except Book.DoesNotExist:
+        return Response({'error': 'Book not found'}, status=status.HTTP_404_NOT_FOUND)
+    
+    current_page = req.data.get('current_page')
+    if current_page is None:
+        return Response({'error': 'current_page is required'}, status=status.HTTP_400_BAD_REQUEST)
+    
+    try:
+        current_page = int(current_page)
+    except ValueError:
+        return Response({'error': 'current_page must be a number'}, status=status.HTTP_400_BAD_REQUEST)
+    
+    # Validation
+    if current_page < 0:
+        return Response({'error': 'Page cannot be negative'}, status=status.HTTP_400_BAD_REQUEST)
+    
+    if book.total_pages is None:
+        return Response({'error': 'Total pages is not set'}, status=status.HTTP_400_BAD_REQUEST)
+    
+    if current_page > book.total_pages:
+        return Response({
+            'error': f'Page cannot exceed total pages ({book.total_pages})'
+        }, status=status.HTTP_400_BAD_REQUEST)
+    
+    book.current_page = current_page
+    
+    # Check if finished
+    if current_page == book.total_pages:
+        book.status = 'FINISHED'
+        book.finished_date = timezone.now()
+    else:
+        book.status = 'READING'
+        book.finished_date = None
+    
+    book.save()
+    
+    Activity.objects.create(
+        user=req.user,
+        action='BOOK_STATUS_CHANGED',
+        description=f"Progress updated to {current_page}/{book.total_pages} pages",
+        metadata={'book_id': book.id, 'progress': current_page}
+    )
+    
+    serializer = BookSerializer(book)
+    return Response(serializer.data)
+
+
+
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
+def lend_book(req):
+    book_id = req.data.get('book_id')
+    borrower_email = req.data.get('borrower_email')
+    
+    if not book_id or not borrower_email:
+        return Response(
+            {'error': 'book_id and borrower_email are required'},
+            status=status.HTTP_400_BAD_REQUEST
+        )
+    
+    # Check book exists and belongs to user
+    try:
+        book = Book.objects.get(pk=book_id, user=req.user)
+    except Book.DoesNotExist:
+        return Response(
+            {'error': 'Book not found or does not belong to you'},
+            status=status.HTTP_404_NOT_FOUND
+        )
+    
+    # Check borrower exists
+    try:
+        borrower = User.objects.get(email=borrower_email)
+    except User.DoesNotExist:
+        return Response(
+            {'error': 'Borrower not found'},
+            status=status.HTTP_404_NOT_FOUND
+        )
+    
+    # Check not lending to self
+    if borrower == req.user:
+        return Response(
+            {'error': 'You cannot lend a book to yourself'},
+            status=status.HTTP_400_BAD_REQUEST
+        )
+    
+    # Check if already lent
+    if book.is_lent:
+        return Response(
+            {'error': 'This book is currently lent to someone else'},
+            status=status.HTTP_400_BAD_REQUEST
+        )
+    
+    # Lend the book
+    book.is_lent = True
+    book.lent_to = borrower
+    book.save()
+    
+    # Create activity
+    Activity.objects.create(
+        user=req.user,
+        action='BOOK_LENT',
+        description=f"Lent '{book.title}' to {borrower.email}",
+        metadata={'book_id': book.id, 'borrower_id': borrower.id}
+    )
+    
+    serializer = BookSerializer(book)
+    return Response(serializer.data)
+
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
+def return_book(req, book_id):
+    try:
+        book = Book.objects.get(pk=book_id, user=req.user)
+    except Book.DoesNotExist:
+        return Response(
+            {'error': 'Book not found or does not belong to you'},
+            status=status.HTTP_404_NOT_FOUND
+        )
+    
+    if not book.is_lent:
+        return Response(
+            {'error': 'This book is not currently lent out'},
+            status=status.HTTP_400_BAD_REQUEST
+        )
+    
+    borrower = book.lent_to
+    book.is_lent = False
+    book.lent_to = None
+    book.save()
+    
+    Activity.objects.create(
+        user=req.user,
+        action='BOOK_RETURNED',
+        description=f"Returned '{book.title}' from {borrower.email if borrower else 'unknown'}",
+        metadata={'book_id': book.id}
+    )
+    
+    serializer = BookSerializer(book)
+    return Response(serializer.data)
+
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+def borrowed_books(req):
+    books = Book.objects.filter(lent_to=req.user, is_lent=True)
+    serializer = BookSerializer(books, many=True)
+    return Response(serializer.data)

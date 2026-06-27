@@ -10,6 +10,7 @@ import BookForm from './pages/BookForm';
 import Shelves from './pages/Shelves';
 import ShelfForm from './pages/ShelfForm';
 import SharedShelves from './pages/SharedShelves';
+import ShelfDetail from './pages/ShelfDetail';
 
 function App() {
   return (
@@ -24,6 +25,7 @@ function App() {
           <Route path="/books/:id/edit" element={<PrivateRoute><BookForm /></PrivateRoute>} />
           <Route path="/shelves" element={<PrivateRoute><Shelves /></PrivateRoute>} />
           <Route path="/shelves/new" element={<PrivateRoute><ShelfForm /></PrivateRoute>} />
+          <Route path="/shelves/:id" element={<PrivateRoute><ShelfDetail /></PrivateRoute>} /> 
           <Route path="/shelves/:id/edit" element={<PrivateRoute><ShelfForm /></PrivateRoute>} />
           <Route path="/shared-with-me" element={<PrivateRoute><SharedShelves /></PrivateRoute>} />
           <Route path="/" element={<Navigate to="/dashboard" />} />
