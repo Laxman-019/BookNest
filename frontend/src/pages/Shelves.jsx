@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { Link } from 'react-router-dom';
 import Navbar from '../components/Navbar';
 import LoadingSpinner from '../components/LoadingSpinner';
@@ -9,51 +9,52 @@ const Shelves = () => {
   const [shelves, setShelves] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
-  const [isMounted, setIsMounted] = useState(true);
 
-  const fetchShelves = async () => {
+  const fetchShelves = useCallback(async () => {
     try {
       setLoading(true);
       const response = await api.get('/shelves/');
-      if (isMounted) {
-        setShelves(response.data);
-        setError('');
-      }
-    } catch (err) {
-      if (isMounted) {
-        setError('Failed to load shelves');
-      }
+      setShelves(response.data);
+      setError('');
+    } catch {
+      setError('Failed to load shelves');
     } finally {
-      if (isMounted) {
-        setLoading(false);
-      }
+      setLoading(false);
     }
-  };
+  }, []);
 
   useEffect(() => {
-    setIsMounted(true);
     fetchShelves();
-    
-    return () => {
-      setIsMounted(false);
+  }, [fetchShelves]);
+
+  // Live: any shelf change (book added/removed/deleted, share, etc.) refreshes counts
+  useEffect(() => {
+    const handler = () => {
+      fetchShelves();
     };
-  }, []);
+    window.addEventListener('ws:shelf_updated', handler);
+    window.addEventListener('ws:shelf_shared', handler);
+    return () => {
+      window.removeEventListener('ws:shelf_updated', handler);
+      window.removeEventListener('ws:shelf_shared', handler);
+    };
+  }, [fetchShelves]);
 
   const handleDelete = async (id) => {
     if (!window.confirm('Are you sure you want to delete this shelf?')) return;
     try {
       await api.delete(`/shelves/${id}/`);
       fetchShelves();
-    } catch (err) {
+    } catch {
       setError('Failed to delete shelf');
     }
   };
 
   const getRoleBadge = (role) => {
     const colors = {
-      'OWNER': 'bg-purple-100 text-purple-800',
-      'EDITOR': 'bg-blue-100 text-blue-800',
-      'VIEWER': 'bg-gray-100 text-gray-800'
+      OWNER: 'bg-purple-100 text-purple-800',
+      EDITOR: 'bg-blue-100 text-blue-800',
+      VIEWER: 'bg-gray-100 text-gray-800',
     };
     return colors[role] || 'bg-gray-100 text-gray-800';
   };
@@ -63,20 +64,25 @@ const Shelves = () => {
   return (
     <div className="min-h-screen bg-gray-50">
       <Navbar />
-      
+
       <div className="max-w-7xl mx-auto p-6">
-        <div className="flex justify-between items-center mb-6">
-          <h1 className="text-3xl font-bold text-gray-900">My Shelves</h1>
+        <div className="flex justify-between items-center mb-6 flex-wrap gap-3">
+          <h1 className="text-3xl font-bold text-gray-900 flex items-center gap-3">
+            My Shelves
+            <span className="text-xs bg-green-100 text-green-700 px-2 py-1 rounded-full font-medium">
+              ● Live
+            </span>
+          </h1>
           <div className="flex gap-3">
             <Link
               to="/shared-with-me"
-              className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition"
+              className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition text-sm font-medium"
             >
               Shared with me
             </Link>
             <Link
               to="/shelves/new"
-              className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition"
+              className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition text-sm font-medium"
             >
               + Create Shelf
             </Link>
@@ -95,11 +101,11 @@ const Shelves = () => {
                     {shelf.user_role}
                   </span>
                 </div>
-                
+
                 <p className="text-sm text-gray-600 mb-3">
-                  {shelf.book_count} books • Created by {shelf.owner_details?.name}
+                  {shelf.book_count} books · Created by {shelf.owner_details?.name}
                 </p>
-                
+
                 <div className="flex gap-2">
                   <Link
                     to={`/shelves/${shelf.id}`}
@@ -107,7 +113,7 @@ const Shelves = () => {
                   >
                     View
                   </Link>
-                  
+
                   {shelf.user_role === 'OWNER' && (
                     <>
                       <Link
@@ -131,9 +137,9 @@ const Shelves = () => {
         </div>
 
         {shelves.length === 0 && (
-          <div className="text-center py-12">
+          <div className="text-center py-16 bg-white rounded-xl shadow-sm">
             <p className="text-gray-500 text-lg">No shelves yet</p>
-            <Link to="/shelves/new" className="text-blue-600 hover:underline">
+            <Link to="/shelves/new" className="text-blue-600 hover:underline text-sm mt-2 inline-block">
               Create your first shelf
             </Link>
           </div>
