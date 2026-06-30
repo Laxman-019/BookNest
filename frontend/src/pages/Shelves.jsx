@@ -68,7 +68,7 @@ const Shelves = () => {
       <div className="max-w-7xl mx-auto p-6">
         <div className="flex justify-between items-center mb-6 flex-wrap gap-3">
           <h1 className="text-3xl font-bold text-gray-900 flex items-center gap-3">
-            My Shelves
+            Shelves
             <span className="text-xs bg-green-100 text-green-700 px-2 py-1 rounded-full font-medium">
               ● Live
             </span>
