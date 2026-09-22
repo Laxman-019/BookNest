@@ -2,167 +2,125 @@ import React, { useState } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { useNavigate, Link } from 'react-router-dom';
 
-const Signup = () => {
-  const [formData, setFormData] = useState({
-    name: '',
-    email: '',
-    username: '',
-    password: '',
-    confirmPassword: ''
-  });
+const Login = () => {
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
-  const { signup } = useAuth();
+  const { login } = useAuth();
   const navigate = useNavigate();
-
-  const handleChange = (e) => {
-    setFormData({
-      ...formData,
-      [e.target.name]: e.target.value
-    });
-  };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    setLoading(true);
     setError('');
 
-    if (formData.password !== formData.confirmPassword) {
-      setError('Passwords do not match');
-      return;
-    }
-
-    if (formData.password.length < 8) {
-      setError('Password must be at least 8 characters');
-      return;
-    }
-
-    setLoading(true);
-    const result = await signup(
-      formData.name,
-      formData.email,
-      formData.username,
-      formData.password
-    );
-
+    const result = await login(email, password);
     if (result.success) {
       navigate('/dashboard');
     } else {
-      setError(result.error || 'Signup failed. Please try again.');
+      setError(result.error || 'Login failed. Please try again.');
     }
     setLoading(false);
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 to-indigo-100 py-8">
-      <div className="max-w-md w-full bg-white rounded-2xl shadow-xl p-8">
-        <div className="text-center">
-          <h1 className="text-4xl font-bold text-blue-600 mb-2">📚 BookNest</h1>
-          <p className="text-gray-600">Create your account</p>
-        </div>
+    <div className="min-h-screen bg-[#2F3B32] flex items-center justify-center px-6 py-16">
+      <div className="relative w-full max-w-[380px]">
+        {/* Metal rod threading behind the card */}
+        <div
+          className="absolute left-1/2 -translate-x-1/2 top-[34px] h-[3px] w-[calc(100%+56px)] rounded-full z-0"
+          style={{
+            background:
+              'linear-gradient(90deg, #8A8A82 0%, #D8D8CE 15%, #8A8A82 50%, #D8D8CE 85%, #8A8A82 100%)',
+          }}
+        />
 
-        <form className="mt-8 space-y-4" onSubmit={handleSubmit}>
-          {error && (
-            <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg text-sm">
-              {error}
-            </div>
-          )}
+        {/* Card */}
+        <div className="relative z-10 bg-[#F1ECDF] border border-[#C9BFA8] px-9 pt-12 pb-9 shadow-[0_10px_30px_rgba(0,0,0,0.25)]">
+          {/* Punch hole */}
+          <div className="absolute left-1/2 -translate-x-1/2 top-5 w-3.5 h-3.5 rounded-full bg-[#2F3B32] border border-[#8A8A82]" />
 
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              Full Name
-            </label>
-            <input
-              type="text"
-              name="name"
-              required
-              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition"
-              placeholder="John Doe"
-              value={formData.name}
-              onChange={handleChange}
-            />
-          </div>
-
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              Username
-            </label>
-            <input
-              type="text"
-              name="username"
-              required
-              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition"
-              placeholder="johndoe"
-              value={formData.username}
-              onChange={handleChange}
-            />
-          </div>
-
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              Email Address
-            </label>
-            <input
-              type="email"
-              name="email"
-              required
-              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition"
-              placeholder="you@example.com"
-              value={formData.email}
-              onChange={handleChange}
-            />
-          </div>
-
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              Password
-            </label>
-            <input
-              type="password"
-              name="password"
-              required
-              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition"
-              placeholder="••••••••"
-              value={formData.password}
-              onChange={handleChange}
-            />
-            <p className="mt-1 text-xs text-gray-500">
-              Min 8 chars, 1 uppercase, 1 lowercase, 1 number
-            </p>
-          </div>
-
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              Confirm Password
-            </label>
-            <input
-              type="password"
-              name="confirmPassword"
-              required
-              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition"
-              placeholder="••••••••"
-              value={formData.confirmPassword}
-              onChange={handleChange}
-            />
-          </div>
-
-          <button
-            type="submit"
-            disabled={loading}
-            className="w-full py-3 px-4 bg-blue-600 text-white font-medium rounded-lg hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 transition disabled:opacity-50 disabled:cursor-not-allowed"
+          {/* Call number tag */}
+          <div
+            className="text-[11px] text-[#8B4A3C] mb-6"
+            style={{ fontFamily: '"Courier New", Courier, monospace' }}
           >
-            {loading ? 'Creating account...' : 'Create Account'}
-          </button>
-
-          <div className="text-center text-sm">
-            <span className="text-gray-600">Already have an account? </span>
-            <Link to="/signin" className="text-blue-600 hover:text-blue-500 font-medium">
-              Sign in
-            </Link>
+            823.9 — B725
           </div>
-        </form>
+
+          <h1
+            className="text-[26px] text-[#262019] leading-none mb-1"
+            style={{ fontFamily: 'Georgia, "Times New Roman", serif' }}
+          >
+            BookNest
+          </h1>
+          <p className="text-[#6B6455] text-sm mb-8">
+            Member sign-in
+          </p>
+
+          <form className="space-y-6" onSubmit={handleSubmit}>
+            {error && (
+              <div className="border-l-2 border-[#8B4A3C] bg-[#8B4A3C]/10 text-[#8B4A3C] px-3 py-2 text-sm">
+                {error}
+              </div>
+            )}
+
+            <div>
+              <input
+                type="email"
+                required
+                className="w-full bg-transparent border-0 border-b border-[#C9BFA8] text-[#262019] placeholder-transparent px-0 pb-1.5 focus:outline-none focus:border-[#262019] transition-colors"
+                style={{ fontFamily: '"Courier New", Courier, monospace' }}
+                placeholder="you@example.com"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+              />
+              <label
+                className="block text-[11px] text-[#8B8171] mt-1.5"
+                style={{ fontFamily: '"Courier New", Courier, monospace' }}
+              >
+                email address
+              </label>
+            </div>
+
+            <div>
+              <input
+                type="password"
+                required
+                className="w-full bg-transparent border-0 border-b border-[#C9BFA8] text-[#262019] placeholder-transparent px-0 pb-1.5 focus:outline-none focus:border-[#262019] transition-colors"
+                style={{ fontFamily: '"Courier New", Courier, monospace' }}
+                placeholder="••••••••"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+              />
+              <label
+                className="block text-[11px] text-[#8B8171] mt-1.5"
+                style={{ fontFamily: '"Courier New", Courier, monospace' }}
+              >
+                password
+              </label>
+            </div>
+
+            <button
+              type="submit"
+              disabled={loading}
+              className="w-full py-3 px-4 bg-[#262019] text-[#F1ECDF] font-medium hover:bg-[#3A3226] focus:outline-none focus:ring-2 focus:ring-[#8B4A3C] focus:ring-offset-2 focus:ring-offset-[#F1ECDF] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              {loading ? 'Signing in…' : 'Sign in'}
+            </button>
+
+            <div className="text-center text-sm pt-1">
+              <span className="text-[#6B6455]">Don't have an account? </span>
+              <Link to="/signup" className="text-[#8B4A3C] hover:text-[#6E3A2E] font-medium">
+                Sign up
+              </Link>
+            </div>
+          </form>
+        </div>
       </div>
     </div>
   );
 };
 
-export default Signup;
+export default Login;
